@@ -1,0 +1,24 @@
+init
+create x 1
+create p 1
+create q 1
+create r 1
+list ready
+to
+request R2 1
+to
+request R3 3
+to
+request R4 3
+list res
+to
+to
+request R3 1
+request R4 2
+request R2 2
+list block
+to
+release q
+to
+to
+create w 2
