@@ -59,6 +59,8 @@ void constant();
 void unsigned_integer();
 // <无符号整数_s> -> <数字><无符号整数_s>|<空>
 void unsigned_integer_s();
+// <函数调用> -> <标识符>(<算术表达式>)
+void function_call();
 // <条件语句> → if<条件表达式>then<执行语句>else <执行语句>
 void condition_statement();
 // <条件表达式> → <算术表达式><关系运算符><算术表达式>
@@ -85,18 +87,27 @@ void program()
 void sub_program()
 {
   if (sym == "begin")
+
   {
     advance();
     declaration_statement_table();
-    if (sym != ";")
+    if (sym == ";")
+    {
+      advance();
+      execute_statement_table();
+      if (sym == "end")
+      {
+        advance();
+      }
+      else
+      {
+        error("sub_program end");
+      }
+    }
+    else
     {
       error("sub_program ;");
     }
-    execute_statement_table();
-  }
-  if (sym != "end")
-  {
-    error("sub_program end");
   }
 }
 // <说明语句表> -> <说明语句><说明语句表_s>
@@ -110,6 +121,7 @@ void declaration_statement_table_s()
 {
   if (sym == ";")
   {
+    advance();
     declaration_statement();
     declaration_statement_table_s();
   }
@@ -143,6 +155,10 @@ void declaration_statement()
     }
     variable();
   }
+  else
+  {
+    error("declaration_statement integer");
+  }
 }
 // <变量说明> → integer <变量>
 void variable_declaration()
@@ -164,8 +180,16 @@ void identifier()
 // TODO
 void identifier_s()
 {
-  letter();
-  identifier_s();
+  if (isalpha(character))
+  {
+    letter();
+    identifier_s();
+  }
+  else if (isdigit(character))
+  {
+    number();
+    identifier_s();
+  }
 }
 // <字母> → a│b│c│d│e│f│g│h│i│j│k│l│m│n│o │p│q │r│s│t│u│v│w│x│y│z
 void letter()
@@ -174,6 +198,7 @@ void letter()
   {
     error("letter");
   }
+  advance();
 }
 // <数字> → 0│1│2│3│4│5│6│7│8│9
 void number()
@@ -182,6 +207,7 @@ void number()
   {
     error("number");
   }
+  advance();
 }
 // <函数说明> → integer function <标识符>（<参数>）；<函数体>
 void function_declaration()
@@ -213,6 +239,10 @@ void function_body()
         error("function_body end");
       }
     }
+    else
+    {
+      error("function_body :");
+    }
   }
 }
 // <执行语句表> → <执行语句><执行语句表_s>
@@ -226,11 +256,13 @@ void execute_statement_table_s()
 {
   if (sym == ";")
   {
+    advance();
     execute_statement();
     execute_statement_table_s();
   }
 }
 // <执行语句> → <读语句>│<写语句>│<赋值语句>│<条件语句>
+// <常数> → <无符号整数>
 // <读语句> → read(<变量>)
 // <写语句> → write(<变量>)
 // <赋值语句> → <变量>:=<算术表达式>
@@ -295,13 +327,30 @@ void execute_statement()
         advance();
         execute_statement();
       }
+      else
+      {
+        error("execute_statement else");
+      }
+    }
+    else
+    {
+      error("execute_statement if");
     }
   }
   // <赋值语句> → <变量>:=<算术表达式>
   // TODO 此处需要判断事都是字母
-  else
+  else if (isalpha(character))
   {
     assignment_statement();
+    if (sym == ":=")
+    {
+      advance();
+      arithmetic_expression();
+    }
+  }
+  else
+  {
+    error("execute_statement error");
   }
 }
 // <读语句> → read(<变量>)
@@ -317,6 +366,7 @@ void execute_statement()
 // {
 // }
 // <算术表达式> → <项><算术表达式_s>
+// <常数> → <无符号整数>
 void arithmetic_expression()
 {
   term();
@@ -349,9 +399,36 @@ void term_s()
   }
 }
 // <因子> → <变量>│<常数>│<函数调用>
+// <变量> → <标识符>
+// <常数> → <无符号整数>
+// <函数调用> -> <标识符>(<算术表达式>)
 void factor()
 {
-  // TODO 函数调用未定义
+  if (isalpha(character))
+  {
+    identifier();
+    if (sym == "(")
+    {
+      advance();
+      arithmetic_expression();
+      if (sym == ")")
+      {
+        advance();
+      }
+      else
+      {
+        error("factor )");
+      }
+    }
+  }
+  else if (isdigit(character))
+  {
+    constant();
+  }
+  else
+  {
+    error("factor error");
+  }
 }
 // <常数> → <无符号整数>
 void constant()
@@ -369,6 +446,11 @@ void unsigned_integer_s()
 {
   number();
   unsigned_integer_s();
+}
+// <函数调用> -> <标识符>(<算术表达式>)
+void function_call()
+{
+  // 在 factor 中被实现
 }
 // <条件语句> → if<条件表达式>then<执行语句>else <执行语句>
 // void condition_statement()
@@ -388,6 +470,7 @@ void relational_operator()
   {
     error("relational_operator");
   }
+  advance();
 }
 
 int main()
