@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <string>
 
 using namespace std;
 
@@ -84,15 +85,16 @@ void error(string error_message)
 // <程序> → <分程序>
 void program()
 {
+  cout << "program start" << endl;
   sub_program();
 }
 // <分程序> → begin <说明语句表>；<执行语句表> end
 void sub_program()
 {
   if (sym == "begin")
-
   {
     advance(&infile);
+    cout << "begin start" << endl;
     declaration_statement_table();
     if (sym == ";")
     {
@@ -457,19 +459,23 @@ bool is_identifier(string str)
 
 void advance(ifstream *infile)
 {
+  int space_index;
   getline(*infile, sym);
+  sym.erase(0, sym.find_first_not_of(" "));
+  cout << sym << endl;
+  space_index = sym.find(" ");
+  sym = sym.substr(0, space_index);
+  // cout << sym.substr(space_index + 1) << endl;
 }
 int main()
 {
   infile.open(infilename);
   // outfile.open(outfilename);
   infile >> noskipws;
-  while (sym != "             EOF 25")
+  while (sym != "EOF")
   {
     advance(&infile);
     program();
-    // cout << sym << endl;
   }
-  // program();
   return 0;
 }
