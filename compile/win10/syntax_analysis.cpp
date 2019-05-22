@@ -2,14 +2,20 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <set>
 
 using namespace std;
 
 string infilename = "outfile.dyd";   //语法分析输入文件
-string outfilename = "outfile.dyd2"; //语法分析输出文件
+string outfilename = "outfile.dys"; //语法分析输出文件
+string errfilename = "outfile.err"; //语法分析错误信息文件
 ifstream infile;
 ofstream outfile;
+ofstream errfile;
+set<string> variable_table;
 string sym;
+string sym_type;
+string variable_type = "define";
 int code_line = 1;
 int need_read_new_line = 0;
 vector <string> word_vector;
@@ -77,20 +83,20 @@ bool is_relational_operator(string str);
 // 判断是否是标识符
 bool is_identifier(string str);
 // 判断是否是无符号整数
-bool is_unsigned_integer(string str);
+bool is_unsigned_integer();
 
 void advance(ifstream* infile);
-void error(string error_message);
+void error(string error_message, int line);
 
-void error(string error_message)
+void error(string error_message, int line)
 {
-	cout << "****" << code_line << " " << error_message << endl;
+	cout << "***LINE:" << line << "  " << error_message << endl;
+	errfile << "***LINE:" << line << "  " << error_message << endl;
 }
 
 // <程序> → <分程序>
 void program()
 {
-	cout << "program start" << endl;
 	sub_program();
 }
 // <分程序> → begin <说明语句表>；<执行语句表> end
@@ -99,7 +105,6 @@ void sub_program()
 	if (sym == "begin")
 	{
 		advance(&infile);
-		cout << "begin start" << endl;
 		declaration_statement_table();
 		if (sym == ";")
 		{
@@ -111,12 +116,8 @@ void sub_program()
 			}
 			else
 			{
-				error("sub_program end");
+				error("sub_program end", code_line);
 			}
-		}
-		else
-		{
-			error("sub_program ;");
 		}
 	}
 }
@@ -132,14 +133,19 @@ void declaration_statement_table_s()
 	if (sym == ";")
 	{
 		advance(&infile);
-		declaration_statement();
-		if (need_read_new_line == 0) {
-			declaration_statement_table_s();
-		}
-		else
-		{
-			advance(&infile);
-		}
+		
+	}
+	else
+	{
+		error("缺少符号出错: 缺失 ;", code_line - 1);
+	}
+	declaration_statement();
+	if (need_read_new_line == 0) {
+		declaration_statement_table_s();
+	}
+	else
+	{
+		advance(&infile);
 	}
 }
 // <说明语句> → <变量说明>│<函数说明>
@@ -150,32 +156,39 @@ void declaration_statement()
 	if (sym == "integer")
 	{
 		advance(&infile);
+		variable_type = "define";
 		if (sym == "function")
 		{
+			variable_type = "define";
 			advance(&infile);
 			identifier();
 			if (sym == "(")
 			{
 				advance(&infile);
+				variable_type = "arguments";
 				arguments();
 				if (sym == ")")
 				{
 					advance(&infile);
-					if (sym == ";")
-					{
-						advance(&infile);
-						function_body();
-					}
+				}
+				else
+				{
+					error("符号匹配出错: 缺失 )", code_line);
+				}
+				if (sym == ";")
+				{
+					advance(&infile);
+					function_body();
 				}
 			}
 		}
 		else {
 			variable();
 		}
+		variable_type = "use";
 	}
 	else
 	{
-		//error("declaration_statement integer");
 		need_read_new_line = 2;
 	}
 }
@@ -198,7 +211,7 @@ void identifier()
 	}
 	else
 	{
-		error("identifier");
+		error("identifier", code_line);
 	}
 }
 
@@ -229,12 +242,12 @@ void function_body()
 			}
 			else
 			{
-				error("function_body end");
+				error("function_body end", code_line);
 			}
 		}
 		else
 		{
-			error("function_body :");
+			error("function_body :", code_line);
 		}
 	}
 }
@@ -257,10 +270,8 @@ void execute_statement_table_s()
 		else
 		{
 			advance(&infile);
-			//need_read_new_line = 2;
 		}
 	}
-
 }
 // <执行语句> → <读语句>│<写语句>│<赋值语句>│<条件语句>
 // <常数> → <无符号整数>
@@ -284,12 +295,12 @@ void execute_statement()
 			}
 			else
 			{
-				error("execute_statement )");
+				error("execute_statement )", code_line);
 			}
 		}
 		else
 		{
-			error("execute_statement (");
+			error("execute_statement (", code_line);
 		}
 	}
 	// <写语句> → write(<变量>)
@@ -306,12 +317,12 @@ void execute_statement()
 			}
 			else
 			{
-				error("execute_statement )");
+				error("execute_statement )", code_line);
 			}
 		}
 		else
 		{
-			error("execute_statement (");
+			error("execute_statement (", code_line);
 		}
 	}
 	// <条件语句> → if<条件表达式>then<执行语句>else <执行语句>
@@ -330,16 +341,15 @@ void execute_statement()
 			}
 			else
 			{
-				error("execute_statement else");
+				error("execute_statement else", code_line);
 			}
 		}
 		else
 		{
-			error("execute_statement if");
+			error("execute_statement if", code_line);
 		}
 	}
 	// <赋值语句> → <变量>:=<算术表达式>
-	// TODO 此处需要判断事都是字母
 	else if (is_identifier(sym))
 	{
 		arithmetic_expression();
@@ -351,7 +361,7 @@ void execute_statement()
 	}
 	else
 	{
-		error("execute_statement error");
+		error("execute_statement error", code_line);
 	}
 }
 // <读语句> → read(<变量>)
@@ -396,17 +406,8 @@ void term_s()
 	{
 		advance(&infile);
 		factor();
-
-		if (need_read_new_line == 0) {
-			term_s();
-		}
-		else
-		{
-			advance(&infile);
-		}
-		
+		term_s();
 	}
-	
 }
 // <因子> → <变量>│<常数>│<函数调用>
 // <变量> → <标识符>
@@ -416,7 +417,8 @@ void factor()
 {
 	if (is_identifier(sym))
 	{
-		identifier();
+		//identifier();
+		advance(&infile);
 		if (sym == "(")
 		{
 			advance(&infile);
@@ -427,11 +429,11 @@ void factor()
 			}
 			else
 			{
-				error("factor )");
+				error("factor )", code_line);
 			}
 		}
 	}
-	else if (is_identifier(sym))
+	else if (is_unsigned_integer())
 	{
 		constant();
 	}
@@ -443,13 +445,13 @@ void factor()
 // <常数> → <无符号整数>
 void constant()
 {
-	if (is_unsigned_integer(sym))
+	if (is_unsigned_integer())
 	{
 		advance(&infile);
 	}
 	else
 	{
-		error("constant");
+		error("constant", code_line);
 	}
 }
 
@@ -476,18 +478,45 @@ bool is_relational_operator(string str)
 {
 	if (sym != "<" && sym != "<=" && sym != ">" && sym != ">=" && sym != "=" && sym != "<>")
 	{
-		error("relational_operator");
+		error("relational_operator", code_line);
+		return false;
 	}
 	advance(&infile);
 	return true;
 }
-bool is_unsigned_integer(string str)
+bool is_unsigned_integer()
 {
-	return true;
+	// cout << "is_unsigned_integer 11" << endl;
+	if (sym_type == "11") {
+		return true;
+	}
+	return false;
 }
 bool is_identifier(string str)
 {
-	return true;
+	if (sym_type == "10" && need_read_new_line ==0) {
+		if (variable_type == "define")
+		{
+			if (variable_table.count(sym) == 0) {
+				variable_table.insert(sym);
+			}
+			else
+			{
+				error("变量重复定义", code_line);
+			}
+		}
+		else if (variable_type == "use"){
+			if (variable_table.count(sym) == 0) {
+				error("错误地使用了未定义的变量 " + sym, code_line);
+			}
+		}
+		else if (variable_type == "arguments")
+		{
+
+		}
+		return true;
+	}
+	return false;
 }
 
 void advance(ifstream* infile)
@@ -495,9 +524,12 @@ void advance(ifstream* infile)
 	int space_index;
 	if (need_read_new_line == 0) {
 		getline(*infile, sym);
+		outfile << sym << endl;
 		sym.erase(0, sym.find_first_not_of(" "));
-		cout << sym << endl;
+		//cout << sym << endl;
 		space_index = sym.find(" ");
+		sym_type = sym.substr(space_index + 1);
+		//cout << sym_type << endl;
 		sym = sym.substr(0, space_index);
 		if (sym == "EOLN") {
 			++code_line;
@@ -520,10 +552,14 @@ void advance(ifstream* infile)
 int main()
 {
 	infile.open(infilename);
-	// outfile.open(outfilename);
+	outfile.open(outfilename);
+	errfile.open(errfilename);
 	infile >> noskipws;
 	cout << "----this is 1 line----" << endl;
 	advance(&infile);
 	program();
+	infile.close();
+	outfile.close();
+	errfile.close();
 	return 0;
 }

@@ -37,9 +37,9 @@ int reserver(string token);
 int symbol(string token);
 int constant(string token);
 string outspace(int num);
-int main()
+int main1()
 {
-	string infilename = "infile.txt";    //词法分析输入文件
+	string infilename = "infile.pas";    //词法分析输入文件
 	string outfilename = "outfile.dyd"; //词法分析输出文件
 	char character;               // 读取的字符串
 	bool isretract = false;       // 标志位, 用来标记是否有字符回退
@@ -50,9 +50,6 @@ int main()
 	infile.open(infilename);
 	outfile.open(outfilename);
 	infile >> noskipws;
-	infile >> character;
-	infile >> character;
-	infile >> character;
 	while (!infile.eof()) //判断刚读取的字符是否是文件结束符
 	{
 		// 判断是否回退, 如果回退则不读取新的字符
@@ -146,7 +143,8 @@ int main()
 			else
 			{
 				val = symbol(token);
-				outfile << token << ' ' << val << endl;
+				// outfile << token << ' ' << val << endl;
+				outfile << token << ' ' << "10" << endl;
 			}
 			token = "";
 			break;
@@ -168,7 +166,8 @@ int main()
 			isretract = true;
 			val = constant(token);
 			outfile << outspace(16 - token.size());
-			outfile << token << ' ' << val << endl;
+			// outfile << token << ' ' << val << endl;
+			outfile << token << ' ' << "11" << endl;
 			token = "";
 			break;
 		case '=':
